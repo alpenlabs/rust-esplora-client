@@ -31,7 +31,7 @@ use bitcoin::{
 
 use crate::api::AddressStats;
 use crate::{
-    BlockStatus, BlockSummary, Builder, Error, MerkleProof, OutputStatus, Tx, TxStatus,
+    BlockStatus, BlockSummary, Builder, Error, MerkleProof, OutputStatus, Tx, TxStatus, Utxo,
     BASE_BACKOFF_MILLIS, RETRYABLE_ERROR_CODES,
 };
 
@@ -393,6 +393,11 @@ impl BlockingClient {
                 resp => return Ok(resp),
             }
         }
+    }
+
+    /// Get the list of unspent transaction outputs associated with the address.
+    pub async fn get_address_utxo(&self, address: Address) -> Result<Vec<Utxo>, Error> {
+        self.get_response_json(&format!("address/{}/utxo", address))
     }
 }
 

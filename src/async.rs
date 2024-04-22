@@ -26,11 +26,11 @@ use bitcoin::{
 #[allow(unused_imports)]
 use log::{debug, error, info, trace};
 
-use reqwest::{header, Client, Response};
+use reqwest::{header, Client, Response, StatusCode};
 
 use crate::api::AddressStats;
 use crate::{
-    BlockStatus, BlockSummary, Builder, Error, MerkleProof, OutputStatus, Tx, TxStatus,
+    BlockStatus, BlockSummary, Builder, Error, MerkleProof, OutputStatus, Tx, TxStatus, Utxo,
     BASE_BACKOFF_MILLIS, RETRYABLE_ERROR_CODES,
 };
 
@@ -447,6 +447,32 @@ impl<S: Sleeper> AsyncClient<S> {
             return Err(Error::InvalidResponse);
         }
         Ok(blocks)
+    }
+
+    /// Get the list of unspent transaction outputs associated with the address.
+    pub async fn get_address_utxo(&self, address: Address) -> Result<Vec<Utxo>, Error> {
+        let resp = self
+            .client
+            .get(&format!(
+                "{}/address/{}/utxo",
+                self.url,
+                address.to_string()
+            ))
+            .send()
+            .await?;
+
+        if let StatusCode::NOT_FOUND = resp.status() {
+            return Ok(vec![]);
+        }
+
+        if resp.status().is_server_error() || resp.status().is_client_error() {
+            Err(Error::HttpResponse {
+                status: resp.status().as_u16(),
+                message: resp.text().await?,
+            })
+        } else {
+            Ok(resp.json::<Vec<Utxo>>().await?)
+        }
     }
 
     /// Get the underlying base URL.
